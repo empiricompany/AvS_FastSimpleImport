@@ -77,6 +77,9 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
     protected $_disablePreprocessImageData = false;
 
     /** @var bool */
+    protected $_resizeDownloadedImage = false;
+
+    /** @var bool */
     protected $_disablePreprocessDownloadableLinksData = false;
 
     /** @var null|bool */
@@ -129,6 +132,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
         $this->setAllowRenameFiles(Mage::getStoreConfigFlag('fastsimpleimport/product/allow_rename_files'));
         $this->setImageAttributes(array_filter(explode(',', Mage::getStoreConfig('fastsimpleimport/product/additional_image_attributes'))));
         $this->setDisablePreprocessImageData(Mage::getStoreConfigFlag('fastsimpleimport/product/disable_preprocess_images'));
+        $this->setResizeDownloadedImage(Mage::getStoreConfigFlag('fastsimpleimport/product/resize_image'));
         $this->setUnsetEmptyFields(Mage::getStoreConfigFlag('fastsimpleimport/general/clear_field_on_empty_string'));
         $this->setSymbolEmptyFields(Mage::getStoreConfig('fastsimpleimport/general/symbol_for_clear_field'));
         $this->setSymbolIgnoreFields(Mage::getStoreConfig('fastsimpleimport/general/symbol_for_ignore_field'));
@@ -205,6 +209,25 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
     public function setDisablePreprocessImageData($disablePreprocessImageData)
     {
         $this->_disablePreprocessImageData = (boolean) $disablePreprocessImageData;
+
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function getResizeDownloadedImage()
+    {
+        return $this->_resizeDownloadedImage;
+    }
+
+    /**
+     * @param boolean $_resizeDownloadedImage Disable preprossess image data
+     * @return $this
+     */
+    public function setResizeDownloadedImage($_resizeDownloadedImage)
+    {
+        $this->_resizeDownloadedImage = (boolean) $_resizeDownloadedImage;
 
         return $this;
     }
@@ -482,7 +505,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
                         $targetFilename = basename(parse_url($rowData['_media_image'], PHP_URL_PATH));
                     }
 
-                    if (!is_file($this->_getUploader()->getTmpDir() . DS . $targetFilename)) {
+                    if ($targetFilename && !is_file($this->_getUploader()->getTmpDir() . DS . $targetFilename)) {
                         $this->_copyExternalImageFile($rowData['_media_image'], $targetFilename);
                     }
                     $source->setValue('_media_image', $targetFilename);
@@ -561,9 +584,34 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
 
                 throw new Exception('Got ' . $httpCode . ' while fetching image from url ' . $url);
             }
+
+            if ($this->getResizeDownloadedImage()) {
+                $this->_resizeImage($tmpTargetPath);
+            }
+
         } catch (Exception $e) {
             Mage::logException($e);
         }
+    }
+
+    protected function _resizeImage($tmpTargetPath)
+    {
+        $_imageWidth = Mage::getStoreConfig('fastsimpleimport/product/image_resize_width');
+        $_imageHeight = Mage::getStoreConfig('fastsimpleimport/product/image_resize_height');
+        $_imageQuality = Mage::getStoreConfig('fastsimpleimport/product/image_resize_quality');
+        $image = new Varien_Image($tmpTargetPath);
+        $image->constrainOnly(true);
+        $image->keepAspectRatio(true);
+        $image->keepFrame(false);
+        $image->keepTransparency(true);
+        $image->backgroundColor(array(255, 255, 255));
+        if ($_imageWidth && $_imageHeight) {
+            $image->resize($_imageWidth, $_imageHeight);
+        }
+        if ($_imageQuality) {
+            $image->quality($_imageQuality);
+        }
+        $image->save($tmpTargetPath);
     }
 
     /**
