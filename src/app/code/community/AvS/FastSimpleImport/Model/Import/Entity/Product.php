@@ -596,22 +596,30 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
 
     protected function _resizeImage($tmpTargetPath)
     {
-        $_imageWidth = Mage::getStoreConfig('fastsimpleimport/product/image_resize_width');
-        $_imageHeight = Mage::getStoreConfig('fastsimpleimport/product/image_resize_height');
-        $_imageQuality = Mage::getStoreConfig('fastsimpleimport/product/image_resize_quality');
-        $image = new Varien_Image($tmpTargetPath);
-        $image->constrainOnly(true);
-        $image->keepAspectRatio(true);
-        $image->keepFrame(false);
-        $image->keepTransparency(true);
-        $image->backgroundColor(array(255, 255, 255));
-        if ($_imageWidth && $_imageHeight) {
-            $image->resize($_imageWidth, $_imageHeight);
+        if (!is_file($tmpTargetPath)) {
+            return;
         }
-        if ($_imageQuality) {
-            $image->quality($_imageQuality);
+
+        try {
+            $_imageWidth = Mage::getStoreConfig('fastsimpleimport/product/image_resize_width');
+            $_imageHeight = Mage::getStoreConfig('fastsimpleimport/product/image_resize_height');
+            $_imageQuality = Mage::getStoreConfig('fastsimpleimport/product/image_resize_quality');
+            $image = new Varien_Image($tmpTargetPath);
+            $image->constrainOnly(true);
+            $image->keepAspectRatio(true);
+            $image->keepFrame(false);
+            $image->keepTransparency(true);
+            $image->backgroundColor(array(255, 255, 255));
+            if ($_imageWidth && $_imageHeight) {
+                $image->resize($_imageWidth, $_imageHeight);
+            }
+            if ($_imageQuality) {
+                $image->quality($_imageQuality);
+            }
+            $image->save($tmpTargetPath);
+        } catch (Exception $e) {
+            Mage::logException($e);
         }
-        $image->save($tmpTargetPath);
     }
 
     /**
