@@ -542,6 +542,9 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
                 throw new Exception(sprintf('Unable to fopen \'%s\' to write image file.', $tmpTargetPath));
             }
 
+            // fix for urls with spaces
+            $url = str_replace(' ', '%20', $url);
+
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_TIMEOUT, 50);
             curl_setopt($ch, CURLOPT_FILE, $fileHandle);
@@ -551,12 +554,12 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
             curl_close($ch);
             fclose($fileHandle);
 
-            if (404 == $httpCode) {
+            if (200 != $httpCode) {
                 if (is_file($tmpTargetPath)) {
                     unlink($tmpTargetPath);
                 }
 
-                throw new Exception('Got 404 while fetching image from url ' . $url);
+                throw new Exception('Got ' . $httpCode . ' while fetching image from url ' . $url);
             }
         } catch (Exception $e) {
             Mage::logException($e);
